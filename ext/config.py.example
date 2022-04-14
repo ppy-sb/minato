@@ -1,0 +1,15 @@
+# MySQL Settings
+mysql_host = ""
+mysql_user = ""
+mysql_password = ""
+mysql_dbname = ""
+
+# Avatar Settings
+server_avatar = "https://a.ppy.sb"
+
+# User Default Settings
+user_default_profile_colour = "#3366FF"
+user_default_cover_url = "https://s2.loli.net/2022/04/14/8Asmx6yuNEf1Qqn.jpg"
+user_default_playstyle = ["pen", "tablet"]
+user_default_profile_order = ["me", "recent_activity", "top_ranks", "medals"]
+
