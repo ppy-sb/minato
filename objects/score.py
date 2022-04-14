@@ -9,6 +9,8 @@ from terms.mods import Mods
 
 
 class Score(BaseModel):
+    class Config:
+        arbitrary_types_allowed = True
     replay = True
     accuracy: float
     best_id: int
