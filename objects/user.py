@@ -4,10 +4,8 @@ from typing import Optional
 from pydantic import BaseModel
 
 import config
-from objects import stored
+from objects.stored import new_cursor
 from terms.gamemode import GameMode
-
-db_cursor = stored.db_cursor
 
 
 class UserStatistics(BaseModel):
@@ -28,21 +26,22 @@ class UserStatistics(BaseModel):
 
     @staticmethod
     async def from_sql(user_id: int, country: str, mode: GameMode) -> 'UserStatistics':
+        db_cursor = new_cursor()
         db_cursor.execute(f"select * from stats where id = %s and mode = %s", [user_id, int(mode)])
-        rows = db_cursor.fetchone()
-        total_score = rows['tscore']
+        row = db_cursor.fetchone()
+        total_score = row['tscore']
         current_level = get_level(total_score)
         level = {"current": current_level,
                  "progress": get_level_progress(current_level, total_score)}
-        grade_counts = {"ss": rows['x_count'], "ssh": rows['xh_count'], "s": rows['s_count'],
-                        "sh": rows['sh_count'], "a": rows['a_count']}
-        pp = float(rows['pp'])
+        grade_counts = {"ss": row['x_count'], "ssh": row['xh_count'], "s": row['s_count'],
+                        "sh": row['sh_count'], "a": row['a_count']}
+        pp = float(row['pp'])
         rank = await get_rank(user_id, country, pp, mode)
         return UserStatistics(level=level, grade_counts=grade_counts, rank=rank,
-                              pp=pp, global_rank=rank['global'], ranked_score=rows['rscore'],
-                              hit_accuracy=rows['acc'], play_count=rows['plays'],
-                              play_time=rows['playtime'], total_score=rows['tscore'],
-                              maximum_combo=rows['max_combo'])
+                              pp=pp, global_rank=rank['global'], ranked_score=row['rscore'],
+                              hit_accuracy=row['acc'], play_count=row['plays'],
+                              play_time=row['playtime'], total_score=row['tscore'],
+                              maximum_combo=row['max_combo'])
 
 
 class User(BaseModel):
@@ -72,25 +71,27 @@ class User(BaseModel):
 
     @staticmethod
     async def from_sql(user: str, mode: GameMode) -> Optional['User']:
+        db_cursor = new_cursor()
         if user.isdigit():
             db_cursor.execute(f"select * from users where id = %s or name = %s", [int(user), user])
         else:
             db_cursor.execute(f"select * from users where name = %s", [user])
-        rows = db_cursor.fetchone()
-        if rows is None:
+        row = db_cursor.fetchone()
+        if row is None:
             return None
-        fav_mode = get_favorite_mode(rows['id'])
+        fav_mode = get_favorite_mode(row['id'])
         if mode == GameMode.unknown:
             mode = fav_mode
-        statistics = await UserStatistics.from_sql(int(rows['id']), rows['country'], mode)
-        avatar_url = config.server_avatar + f"/{rows['id']}"
-        return User(id=rows['id'], username=rows['name'], avatar_url=avatar_url, playmode=fav_mode.as_vanilla_name,
-                    country_code=rows['country'].upper(), statistics=statistics,
-                    last_visit=datetime.fromtimestamp(int(rows['latest_activity'])),
-                    join_date=datetime.fromtimestamp(int(rows['creation_time'])))
+        statistics = await UserStatistics.from_sql(int(row['id']), row['country'], mode)
+        avatar_url = config.server_avatar + str(row['id'])
+        return User(id=row['id'], username=row['name'], avatar_url=avatar_url, playmode=fav_mode.as_vanilla_name,
+                    country_code=row['country'].upper(), statistics=statistics,
+                    last_visit=datetime.fromtimestamp(int(row['latest_activity'])),
+                    join_date=datetime.fromtimestamp(int(row['creation_time'])))
 
 
 async def get_rank(user_id: int, country: str, pp: float, mode: GameMode) -> dict[str, int]:
+    db_cursor = new_cursor()
     db_cursor.execute(
         'SELECT COUNT(*) AS higher_pp_players '
         'FROM stats s '
@@ -133,6 +134,7 @@ def get_level_progress(level: int, total_score: int) -> int:
 
 
 def get_favorite_mode(user_id: int) -> GameMode:
+    db_cursor = new_cursor()
     db_cursor.execute(f"select mode from stats where id = %s order by plays desc", [user_id])
     return GameMode(db_cursor.fetchone()['mode'])
 

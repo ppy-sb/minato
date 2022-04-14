@@ -1,8 +1,114 @@
+from datetime import datetime
+
 from pydantic import BaseModel
+
+import config
+from objects.stored import new_cursor
+from terms.gamemode import GameMode
+from terms.mods import Mods
 
 
 class Score(BaseModel):
+    replay = True
+    accuracy: float
+    best_id: int
+    created_at: datetime
+    id: int
+    max_combo: int
+    mode: str
+    mode_int: int
+    mods: list[str]
+    passed: bool
+    perfect: bool
+    pp: float
+    rank: str
+    score: int
+    statistics: dict[str, int]
+    beatmap: dict[str, str]
+    beatmapset: dict[str, object]
+    user_id: int
+    weight: dict[str, float] = []
 
     @staticmethod
-    async def from_sql(user_id: int, include_fails: bool, mode: str, limit: int, offset: int) -> 'Score':
-        return Score()
+    async def from_sql(score_id: int, mode: GameMode) -> 'Score':
+        db_cursor = new_cursor()
+        db_cursor.execute(f"select * from {mode.scores_table} where id = %s", [score_id])
+        row = db_cursor.fetchone()
+        db_cursor.execute(f"select * from maps where md5 = %s", [row['map_md5']])
+        map_row = db_cursor.fetchone()
+        set_id = map_row['set_id']
+        statistics = {
+            "count_100": row['n100'],
+            "count_300": row['n300'],
+            "count_50": row['n50'],
+            "count_geki": row['ngeki'],
+            "count_katu": row['nkatu'],
+            "count_miss": row['nmiss']
+        }
+        beatmap = {
+            "beatmapset_id": map_row['set_id'],
+            "id": map_row['id'],
+            "version": map_row['version']
+        }
+        beatmapset = {
+            "artist": map_row['artist'],
+            "artist_unicode": map_row['artist'],
+            "title": map_row['title'],
+            "title_unicode": map_row['title'],
+            "creator": map_row['creator'],
+            "covers": {
+                "cover": f"{config.beatmap_assets}{set_id}/covers/cover.jpg",
+                "cover@2x": f"{config.beatmap_assets}{set_id}/covers/cover@2x.jpg",
+                "card": f"{config.beatmap_assets}{set_id}/covers/card.jpg",
+                "card@2x": f"{config.beatmap_assets}{set_id}/covers/card@2x.jpg",
+                "list": f"{config.beatmap_assets}{set_id}/covers/list.jpg",
+                "list@2x": f"{config.beatmap_assets}{set_id}/covers/list@2x.jpg",
+                "slimcover": f"{config.beatmap_assets}{set_id}/covers/slimcover.jpg",
+                "slimcover@2x": f"{config.beatmap_assets}{set_id}/covers/slimcover@2x.jpg"
+            }
+        }
+        return Score(accuracy=row['acc'], best_id=row['id'], id=row['id'], created_at=row['play_time'],
+                     max_combo=row['max_combo'], mode=mode.as_vanilla_name, mode_int=mode.as_vanilla,
+                     mods=Mods(row['mods']).as_list(), passed=(row['grade'] != "F"),
+                     perfect=bool(row['perfect']), pp=row['pp'], rank=row['grade'].replace("X", "SS"),
+                     score=row['score'], statistics=statistics, user_id=row['userid'], beatmap=beatmap,
+                     beatmapset=beatmapset)
+
+
+async def get_best_scores(user_id: int, include_fails: bool, mode: str, limit: int, offset: int):
+    db_cursor = new_cursor()
+    game_mode = GameMode[mode]
+    db_cursor.execute(
+        f'SELECT s.id, s.acc, s.pp FROM {game_mode.scores_table} s '
+        'INNER JOIN maps m ON s.map_md5 = m.md5 '
+        'WHERE s.userid = %s AND s.mode = %s '
+        'AND s.status = 2 AND m.status = 2 '
+        'ORDER BY s.pp DESC '
+        f'limit {offset}, {limit}',
+        [user_id, game_mode.as_vanilla]
+    )
+    result = []
+    for i, row in enumerate(db_cursor.fetchall()):
+        percentage = 0.95 ** (offset + i)
+        pp = row['pp'] * percentage
+        score = await Score.from_sql(row['id'], game_mode)
+        score.weight = {
+            "percentage": percentage,
+            "pp": pp
+        }
+        result.append(score)
+    return result
+
+
+async def get_recent_scores(user_id: int, include_fails: bool, mode: str, limit: int, offset: int):
+    db_cursor = new_cursor()
+    game_mode = GameMode[mode]
+    db_cursor.execute(f'select id from {game_mode.scores_table} where userid = %s and mode = %s '
+                      'order by play_time desc '
+                      f'limit {offset}, {limit}',
+                      [user_id, game_mode.as_vanilla])
+    result = []
+    for row in db_cursor.fetchall():
+        score = await Score.from_sql(row['id'], game_mode)
+        result.append(score)
+    return result

@@ -4,8 +4,9 @@ mysql_user = ""
 mysql_password = ""
 mysql_dbname = ""
 
-# Avatar Settings
-server_avatar = "https://a.ppy.sb"
+# Assets Settings
+server_avatar = "https://a.ppy.sb/"
+beatmap_assets = "https://assets.ppy.sh/beatmaps/"
 
 # User Default Settings
 user_default_profile_colour = "#3366FF"

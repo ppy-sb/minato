@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from terms.gamemode import GameMode
-from objects.score import Score
+from objects.score import get_best_scores, get_recent_scores, Score
 from objects.user import User
 
 app = FastAPI()
@@ -23,8 +23,18 @@ async def get_user(user: str, mode: str):
     return await User.from_sql(user, GameMode[mode])
 
 
-@app.get("/users/{user_id}/scores/{type}")
-async def get_score(user_id: int, include_fails: str = "0", mode: str = "osu", limit: int = 20, offset: int = 0):
+@app.get("/users/{user_id}/scores/{method}")
+async def get_scores(user_id: int, method: str, include_fails: str = "0", mode: str = "osu", limit: int = 5, offset: int = 0):
     if mode not in GameMode.__members__:
         mode = "osu"
-    return await Score.from_sql(user_id, include_fails == "1", mode, limit, offset)
+    if method == "best":
+        return await get_best_scores(user_id, include_fails == "1", mode, limit, offset)
+    if method == "recent":
+        return await get_recent_scores(user_id, include_fails == "1", mode, limit, offset)
+
+
+@app.get("/score/{score_id}")
+async def get_score(score_id: int, mode: str = "osu"):
+    if mode not in GameMode.__members__:
+        mode = "osu"
+    return await Score.from_sql(score_id, GameMode[mode])
