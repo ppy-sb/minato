@@ -9,24 +9,24 @@ class GameMode(IntEnum):
     fruits = 2
     mania = 3
 
-    osuRx = 4
-    taikoRx = 5
-    fruitsRx = 6
+    osuRX = 4
+    taikoRX = 5
+    fruitsRX = 6
 
-    osuAp = 7
+    osuAP = 7
 
     @functools.cached_property
     def scores_table(self) -> str:
-        if self.value < self.osuRx:
+        if self.value < self.osuRX:
             return 'scores_vn'
-        elif self.value < self.osuAp:
+        elif self.value < self.osuAP:
             return 'scores_rx'
         else:
             return 'scores_ap'
 
     @functools.cached_property
     def as_vanilla(self) -> int:
-        if self.value == self.osuAp:
+        if self.value == self.osuAP:
             return 0
 
         return self.value % 4
