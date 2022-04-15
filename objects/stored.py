@@ -11,4 +11,5 @@ db = pymysql.connect(host=config.mysql_host,
 
 
 def new_cursor() -> DictCursor:
+    db.ping(reconnect=True)  # May cause performance dropped
     return db.cursor(cursors.DictCursor)

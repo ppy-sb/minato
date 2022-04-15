@@ -37,6 +37,7 @@ class UserStatistics(BaseModel):
                         "sh": row['sh_count'], "a": row['a_count']}
         pp = float(row['pp'])
         rank = await get_rank(user_id, country, pp, mode)
+        db_cursor.close()
         return UserStatistics(level=level, grade_counts=grade_counts, rank=rank,
                               pp=pp, global_rank=rank['global'], ranked_score=row['rscore'],
                               hit_accuracy=row['acc'], play_count=row['plays'],
@@ -84,6 +85,7 @@ class User(BaseModel):
             mode = fav_mode
         statistics = await UserStatistics.from_sql(int(row['id']), row['country'], mode)
         avatar_url = config.server_avatar + str(row['id'])
+        db_cursor.close()
         return User(id=row['id'], username=row['name'], avatar_url=avatar_url, playmode=fav_mode.as_vanilla_name,
                     country_code=row['country'].upper(), statistics=statistics,
                     last_visit=datetime.fromtimestamp(int(row['latest_activity'])),
@@ -115,6 +117,7 @@ async def get_rank(user_id: int, country: str, pp: float, mode: GameMode) -> dic
         [int(mode), pp, country, user_id]
     )
     country_rank = 1 + db_cursor.fetchone()['higher_pp_players']
+    db_cursor.close()
     return {"global": global_rank, "country": country_rank}
 
 
@@ -136,6 +139,7 @@ def get_level_progress(level: int, total_score: int) -> int:
 def get_favorite_mode(user_id: int) -> GameMode:
     db_cursor = new_cursor()
     db_cursor.execute(f"select mode from stats where id = %s order by plays desc", [user_id])
+    db_cursor.close()
     return GameMode(db_cursor.fetchone()['mode'])
 
 

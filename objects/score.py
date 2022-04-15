@@ -69,6 +69,7 @@ class Score(BaseModel):
                 "slimcover@2x": f"{config.beatmap_assets}{set_id}/covers/slimcover@2x.jpg"
             }
         }
+        db_cursor.close()
         return Score(accuracy=row['acc'], best_id=row['id'], id=row['id'], created_at=row['play_time'],
                      max_combo=row['max_combo'], mode=mode.as_vanilla_name, mode_int=mode.as_vanilla,
                      mods=Mods(row['mods']).as_list(), passed=(row['grade'] != "F"),
@@ -99,6 +100,7 @@ async def get_best_scores(user_id: int, include_fails: bool, mode: str, limit: i
             "pp": pp
         }
         result.append(score)
+    db_cursor.close()
     return result
 
 
@@ -113,4 +115,5 @@ async def get_recent_scores(user_id: int, include_fails: bool, mode: str, limit:
     for row in db_cursor.fetchall():
         score = await Score.from_sql(row['id'], game_mode)
         result.append(score)
+    db_cursor.close()
     return result
