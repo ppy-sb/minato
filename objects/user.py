@@ -54,6 +54,7 @@ class User(BaseModel):
     join_date: datetime
     statistics: UserStatistics
     playmode: str
+    previous_usernames: list[str]
     is_active = True
     is_bot = False
     is_deleted = False
@@ -85,11 +86,16 @@ class User(BaseModel):
             mode = fav_mode
         statistics = await UserStatistics.from_sql(int(row['id']), row['country'], mode)
         avatar_url = config.server_avatar + str(row['id'])
+        db_cursor.execute(f"select old_name from name_history where id = %s order by apply_time desc", [int(row['id'])])
+        name_history = []
+        for row2 in db_cursor.fetchall():
+            name_history.append(row2['old_name'])
         db_cursor.close()
         return User(id=row['id'], username=row['name'], avatar_url=avatar_url, playmode=fav_mode.as_vanilla_name,
                     country_code=row['country'].upper(), statistics=statistics,
                     last_visit=datetime.fromtimestamp(int(row['latest_activity'])),
-                    join_date=datetime.fromtimestamp(int(row['creation_time'])))
+                    join_date=datetime.fromtimestamp(int(row['creation_time'])),
+                    previous_usernames=name_history)
 
 
 async def get_rank(user_id: int, country: str, pp: float, mode: GameMode) -> dict[str, int]:
