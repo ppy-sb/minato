@@ -1,15 +1,23 @@
-import pymysql
-from pymysql import cursors
-from pymysql.cursors import DictCursor
+import aiomysql
+from aiomysql import Connection, DictCursor, Pool
 
 import config
 
-db = pymysql.connect(host=config.mysql_host,
-                     user=config.mysql_user,
-                     password=config.mysql_password,
-                     database=config.mysql_dbname)
+pool: Pool
 
 
-def new_cursor() -> DictCursor:
-    db.ping(reconnect=True)  # May cause performance dropped
-    return db.cursor(cursors.DictCursor)
+async def new_cursor():
+    conn: Connection = await pool.acquire()
+    cur: DictCursor = await conn.cursor(DictCursor)
+    return conn, cur
+
+
+async def create_pool():
+    global pool
+    pool = await aiomysql.create_pool(host=config.mysql_host, port=3306,
+                                      user=config.mysql_user, password=config.mysql_password,
+                                      db=config.mysql_dbname, charset='utf8')
+
+
+async def release_conn(conn):
+    await pool.release(conn)

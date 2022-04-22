@@ -4,7 +4,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 import config
-from objects.stored import new_cursor
+from objects.stored import new_cursor, release_conn
 from terms.gamemode import GameMode
 
 
@@ -26,18 +26,20 @@ class UserStatistics(BaseModel):
 
     @staticmethod
     async def from_sql(user_id: int, country: str, mode: GameMode) -> 'UserStatistics':
-        db_cursor = new_cursor()
-        db_cursor.execute(f"select * from stats where id = %s and mode = %s", [user_id, int(mode)])
-        row = db_cursor.fetchone()
-        total_score = row['tscore']
-        current_level = get_level(total_score)
-        level = {"current": current_level,
-                 "progress": get_level_progress(current_level, total_score)}
-        grade_counts = {"ss": row['x_count'], "ssh": row['xh_count'], "s": row['s_count'],
-                        "sh": row['sh_count'], "a": row['a_count']}
-        pp = float(row['pp'])
-        rank = await get_rank(user_id, country, pp, mode)
-        db_cursor.close()
+        conn, cur = await new_cursor()
+        try:
+            await cur.execute(f"select * from stats where id = %s and mode = %s", [user_id, int(mode)])
+            row = await cur.fetchone()
+            total_score = row['tscore']
+            current_level = get_level(total_score)
+            level = {"current": current_level,
+                     "progress": get_level_progress(current_level, total_score)}
+            grade_counts = {"ss": row['x_count'], "ssh": row['xh_count'], "s": row['s_count'],
+                            "sh": row['sh_count'], "a": row['a_count']}
+            pp = float(row['pp'])
+            rank = await get_rank(user_id, country, pp, mode)
+        finally:
+            await release_conn(conn)
         return UserStatistics(level=level, grade_counts=grade_counts, rank=rank,
                               pp=pp, global_rank=rank['global'], ranked_score=row['rscore'],
                               hit_accuracy=row['acc'], play_count=row['plays'],
@@ -73,24 +75,26 @@ class User(BaseModel):
 
     @staticmethod
     async def from_sql(user: str, mode: GameMode) -> Optional['User']:
-        db_cursor = new_cursor()
-        if user.isdigit():
-            db_cursor.execute(f"select * from users where id = %s or name = %s", [int(user), user])
-        else:
-            db_cursor.execute(f"select * from users where name = %s", [user])
-        row = db_cursor.fetchone()
-        if row is None:
-            return None
-        fav_mode = get_favorite_mode(row['id'])
-        if mode == GameMode.unknown:
-            mode = fav_mode
-        statistics = await UserStatistics.from_sql(int(row['id']), row['country'], mode)
-        avatar_url = config.server_avatar + str(row['id'])
-        db_cursor.execute(f"select old_name from name_history where id = %s order by apply_time desc", [int(row['id'])])
-        name_history = []
-        for row2 in db_cursor.fetchall():
-            name_history.append(row2['old_name'])
-        db_cursor.close()
+        conn, cur = await new_cursor()
+        try:
+            if user.isdigit():
+                await cur.execute(f"select * from users where id = %s or name = %s", [int(user), user])
+            else:
+                await cur.execute(f"select * from users where name = %s", [user])
+            row = await cur.fetchone()
+            if row is None:
+                return None
+            fav_mode = await get_favorite_mode(row['id'])
+            if mode == GameMode.unknown:
+                mode = fav_mode
+            statistics = await UserStatistics.from_sql(int(row['id']), row['country'], mode)
+            avatar_url = config.server_avatar + str(row['id'])
+            await cur.execute(f"select name from name_legality where id = %s and is_active = 0 order by create_time desc", [int(row['id'])])
+            name_history = []
+            for row2 in await cur.fetchall():
+                name_history.append(row2['name'])
+        finally:
+            await release_conn(conn)
         return User(id=row['id'], username=row['name'], avatar_url=avatar_url, playmode=fav_mode.as_vanilla_name,
                     country_code=row['country'].upper(), statistics=statistics,
                     last_visit=datetime.fromtimestamp(int(row['latest_activity'])),
@@ -99,31 +103,33 @@ class User(BaseModel):
 
 
 async def get_rank(user_id: int, country: str, pp: float, mode: GameMode) -> dict[str, int]:
-    db_cursor = new_cursor()
-    db_cursor.execute(
-        'SELECT COUNT(*) AS higher_pp_players '
-        'FROM stats s '
-        'INNER JOIN users u USING(id) '
-        'WHERE s.mode = %s '
-        'AND s.pp > %s '
-        'AND u.priv & 1 '
-        'AND u.id != %s',
-        [int(mode), pp, user_id]
-    )
-    global_rank = 1 + db_cursor.fetchone()['higher_pp_players']
-    db_cursor.execute(
-        'SELECT COUNT(*) AS higher_pp_players '
-        'FROM stats s '
-        'INNER JOIN users u USING(id) '
-        'WHERE s.mode = %s '
-        'AND s.pp > %s '
-        'AND u.priv & 1 '
-        'AND u.country = %s '
-        'AND u.id != %s',
-        [int(mode), pp, country, user_id]
-    )
-    country_rank = 1 + db_cursor.fetchone()['higher_pp_players']
-    db_cursor.close()
+    conn, cur = await new_cursor()
+    try:
+        await cur.execute(
+            'SELECT COUNT(*) AS higher_pp_players '
+            'FROM stats s '
+            'INNER JOIN users u USING(id) '
+            'WHERE s.mode = %s '
+            'AND s.pp > %s '
+            'AND u.priv & 1 '
+            'AND u.id != %s',
+            [int(mode), pp, user_id]
+        )
+        global_rank = 1 + (await cur.fetchone())['higher_pp_players']
+        await cur.execute(
+            'SELECT COUNT(*) AS higher_pp_players '
+            'FROM stats s '
+            'INNER JOIN users u USING(id) '
+            'WHERE s.mode = %s '
+            'AND s.pp > %s '
+            'AND u.priv & 1 '
+            'AND u.country = %s '
+            'AND u.id != %s',
+            [int(mode), pp, country, user_id]
+        )
+        country_rank = 1 + (await cur.fetchone())['higher_pp_players']
+    finally:
+        await release_conn(conn)
     return {"global": global_rank, "country": country_rank}
 
 
@@ -142,11 +148,15 @@ def get_level_progress(level: int, total_score: int) -> int:
     return int(total_score / next_level_require * 100)
 
 
-def get_favorite_mode(user_id: int) -> GameMode:
-    db_cursor = new_cursor()
-    db_cursor.execute(f"select mode from stats where id = %s order by plays desc", [user_id])
-    db_cursor.close()
-    return GameMode(db_cursor.fetchone()['mode'])
+async def get_favorite_mode(user_id: int) -> GameMode:
+    conn, cur = await new_cursor()
+    mode = GameMode.osu
+    try:
+        await cur.execute(f"select mode from stats where id = %s order by plays desc", [user_id])
+        mode = GameMode(await cur.fetchone()['mode'])
+    finally:
+        await release_conn(conn)
+        return mode
 
 
 def get_level(total_score: int) -> int:

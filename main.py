@@ -1,15 +1,19 @@
 from fastapi import FastAPI
 
+from objects.stored import create_pool
 from terms.gamemode import GameMode
 from objects.score import get_best_scores, get_recent_scores, Score
 from objects.user import User
 
 app = FastAPI()
 
+@app.on_event("startup")
+async def startup_event():
+    await create_pool()
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
-
 
 @app.get("/users/{user}")
 async def get_user(user):

@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 import config
-from objects.stored import new_cursor
+from objects.stored import new_cursor, release_conn
 from terms.gamemode import GameMode
 from terms.mods import Mods
 
@@ -33,11 +33,14 @@ class Score(BaseModel):
 
     @staticmethod
     async def from_sql(score_id: int, mode: GameMode) -> 'Score':
-        db_cursor = new_cursor()
-        db_cursor.execute(f"select * from {mode.scores_table} where id = %s", [score_id])
-        row = db_cursor.fetchone()
-        db_cursor.execute(f"select * from maps where md5 = %s", [row['map_md5']])
-        map_row = db_cursor.fetchone()
+        conn, cur = await new_cursor()
+        try:
+            await cur.execute(f"select * from {mode.scores_table} where id = %s", [score_id])
+            row = await cur.fetchone()
+            await cur.execute(f"select * from maps where md5 = %s", [row['map_md5']])
+            map_row = await cur.fetchone()
+        finally:
+            await release_conn(conn)
         set_id = map_row['set_id']
         statistics = {
             "count_100": row['n100'],
@@ -69,7 +72,6 @@ class Score(BaseModel):
                 "slimcover@2x": f"{config.beatmap_assets}{set_id}/covers/slimcover@2x.jpg"
             }
         }
-        db_cursor.close()
         return Score(accuracy=row['acc'], best_id=row['id'], id=row['id'], created_at=row['play_time'],
                      max_combo=row['max_combo'], mode=mode.as_vanilla_name, mode_int=mode.as_vanilla,
                      mods=Mods(row['mods']).as_list(), passed=(row['grade'] != "F"),
@@ -79,41 +81,47 @@ class Score(BaseModel):
 
 
 async def get_best_scores(user_id: int, include_fails: bool, mode: str, limit: int, offset: int):
-    db_cursor = new_cursor()
     game_mode = GameMode[mode]
-    db_cursor.execute(
-        f'SELECT s.id, s.acc, s.pp FROM {game_mode.scores_table} s '
-        'INNER JOIN maps m ON s.map_md5 = m.md5 '
-        'WHERE s.userid = %s AND s.mode = %s '
-        'AND s.status = 2 AND m.status = 2 '
-        'ORDER BY s.pp DESC '
-        f'limit {offset}, {limit}',
-        [user_id, game_mode.as_vanilla]
-    )
     result = []
-    for i, row in enumerate(db_cursor.fetchall()):
-        percentage = 0.95 ** (offset + i)
-        pp = row['pp'] * percentage
-        score = await Score.from_sql(row['id'], game_mode)
-        score.weight = {
-            "percentage": percentage,
-            "pp": pp
-        }
-        result.append(score)
-    db_cursor.close()
+    conn, cur = await new_cursor()
+    try:
+        await cur.execute(
+            f'SELECT s.id, s.acc, s.pp FROM {game_mode.scores_table} s '
+            'INNER JOIN maps m ON s.map_md5 = m.md5 '
+            'WHERE s.userid = %s AND s.mode = %s '
+            'AND s.status = 2 AND m.status = 2 '
+            'ORDER BY s.pp DESC '
+            f'limit {offset}, {limit}',
+            [user_id, game_mode.as_vanilla]
+        )
+
+        for i, row in enumerate(await cur.fetchall()):
+            percentage = 0.95 ** (offset + i)
+            pp = row['pp'] * percentage
+            score = await Score.from_sql(row['id'], game_mode)
+            score.weight = {
+                "percentage": percentage,
+                "pp": pp
+            }
+            result.append(score)
+    finally:
+        await release_conn(conn)
     return result
 
 
 async def get_recent_scores(user_id: int, include_fails: bool, mode: str, limit: int, offset: int):
-    db_cursor = new_cursor()
     game_mode = GameMode[mode]
-    db_cursor.execute(f'select id from {game_mode.scores_table} where userid = %s and mode = %s '
-                      'order by play_time desc '
-                      f'limit {offset}, {limit}',
-                      [user_id, game_mode.as_vanilla])
     result = []
-    for row in db_cursor.fetchall():
-        score = await Score.from_sql(row['id'], game_mode)
-        result.append(score)
-    db_cursor.close()
+    conn, cur = await new_cursor()
+    try:
+        await cur.execute(f'select id from {game_mode.scores_table} where userid = %s and mode = %s '
+                          'order by play_time desc '
+                          f'limit {offset}, {limit}',
+                          [user_id, game_mode.as_vanilla])
+
+        for row in await cur.fetchall():
+            score = await Score.from_sql(row['id'], game_mode)
+            result.append(score)
+    finally:
+        await release_conn(conn)
     return result
