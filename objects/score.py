@@ -78,7 +78,7 @@ class Score(BaseModel):
             }
         }
         return Score(accuracy=row['acc'], best_id=row['id'], id=row['id'], created_at=row['play_time'],
-                     max_combo=row['max_combo'], mode=mode.as_vanilla_name, mode_int=mode.as_vanilla,
+                     max_combo=row['max_combo'], mode=mode.name, mode_int=mode.as_vanilla,
                      mods=Mods(row['mods']).as_list(), passed=(row['grade'] != "F"),
                      perfect=bool(row['perfect']), pp=row['pp'], rank=row['grade'].replace("X", "SS"),
                      score=row['score'], statistics=statistics, user_id=row['userid'], beatmap=beatmap,
