@@ -77,7 +77,7 @@ class Score(BaseModel):
                 "slimcover@2x": f"{config.beatmap_assets}{set_id}/covers/slimcover@2x.jpg"
             }
         }
-        return Score(accuracy=row['acc'], best_id=row['id'], id=row['id'], created_at=row['play_time'],
+        return Score(accuracy=float(row['acc']) / 100, best_id=row['id'], id=row['id'], created_at=row['play_time'],
                      max_combo=row['max_combo'], mode=mode.name, mode_int=mode.as_vanilla,
                      mods=Mods(row['mods']).as_list(), passed=(row['grade'] != "F"),
                      perfect=bool(row['perfect']), pp=row['pp'], rank=row['grade'].replace("X", "SS"),
