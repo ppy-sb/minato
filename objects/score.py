@@ -32,11 +32,13 @@ class Score(BaseModel):
     weight: dict[str, float] = []
 
     @staticmethod
-    async def from_sql(score_id: int, mode: GameMode) -> 'Score':
+    async def from_sql(score_id: int, mode: GameMode):
         conn, cur = await new_cursor()
         try:
             await cur.execute(f"select * from {mode.scores_table} where id = %s", [score_id])
             row = await cur.fetchone()
+            if row is None:
+                return {'Error': "Score not found"}
             await cur.execute(f"select * from maps where md5 = %s", [row['map_md5']])
             map_row = await cur.fetchone()
         finally:

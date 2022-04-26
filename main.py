@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from starlette.responses import Response
 
 from objects.stored import create_pool
 from terms.gamemode import GameMode
@@ -37,7 +38,7 @@ async def get_scores(user_id: int, method: str, include_fails: str = "0", mode: 
         return await get_recent_scores(user_id, include_fails == "1", mode, limit, offset)
 
 
-@app.get("/score/{mode}/{score_id}")
+@app.get("/scores/{mode}/{score_id}")
 async def get_score(score_id: int, mode: str = "osu"):
     if mode not in GameMode.__members__:
         mode = "osu"
