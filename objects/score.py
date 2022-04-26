@@ -41,7 +41,7 @@ class Score(BaseModel):
             row = await cur.fetchone()
             if row is None:
                 return {"detail": "Not Found"}
-            user = await User.from_sql(row['userid'], mode)
+            user = await User.from_sql(str(row['userid']), mode)
             await cur.execute(f"select * from maps where md5 = %s", [row['map_md5']])
             map_row = await cur.fetchone()
         finally:
