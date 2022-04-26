@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 import config
 from objects.stored import new_cursor, release_conn
+from objects.user import User
 from terms.gamemode import GameMode
 from terms.mods import Mods
 
@@ -24,6 +25,7 @@ class Score(BaseModel):
     perfect: bool
     pp: float
     rank: str
+    user: User
     score: int
     statistics: dict[str, int]
     beatmap: dict[str, str]
@@ -39,6 +41,7 @@ class Score(BaseModel):
             row = await cur.fetchone()
             if row is None:
                 return {"detail": "Not Found"}
+            user = await User.from_sql(row['userid'], mode)
             await cur.execute(f"select * from maps where md5 = %s", [row['map_md5']])
             map_row = await cur.fetchone()
         finally:
@@ -79,7 +82,7 @@ class Score(BaseModel):
                      mods=Mods(row['mods']).as_list(), passed=(row['grade'] != "F"),
                      perfect=bool(row['perfect']), pp=row['pp'], rank=row['grade'].replace("X", "SS"),
                      score=row['score'], statistics=statistics, user_id=row['userid'], beatmap=beatmap,
-                     beatmapset=beatmapset)
+                     beatmapset=beatmapset, user=user)
 
 
 async def get_best_scores(user_id: int, include_fails: bool, mode: str, limit: int, offset: int):
