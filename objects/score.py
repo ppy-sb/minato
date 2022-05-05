@@ -3,7 +3,8 @@ from datetime import datetime
 from pydantic import BaseModel
 
 import config
-from objects.stored import new_cursor, release_conn
+
+from objects.stored import db_context
 from objects.user import User
 from terms.gamemode import GameMode
 from terms.mods import Mods
@@ -35,8 +36,7 @@ class Score(BaseModel):
 
     @staticmethod
     async def from_sql(score_id: int, mode: GameMode):
-        conn, cur = await new_cursor()
-        try:
+        async with db_context() as (_, cur):
             await cur.execute(f"select * from {mode.scores_table} where id = %s", [score_id])
             row = await cur.fetchone()
             if row is None:
@@ -44,8 +44,7 @@ class Score(BaseModel):
             user = await User.from_sql(str(row['userid']), mode)
             await cur.execute(f"select * from maps where md5 = %s", [row['map_md5']])
             map_row = await cur.fetchone()
-        finally:
-            await release_conn(conn)
+
         set_id = map_row['set_id']
         statistics = {
             "count_100": row['n100'],
@@ -88,8 +87,7 @@ class Score(BaseModel):
 async def get_best_scores(user_id: int, include_fails: bool, mode: str, limit: int, offset: int):
     game_mode = GameMode[mode]
     result = []
-    conn, cur = await new_cursor()
-    try:
+    async with db_context() as (_, cur):
         await cur.execute(
             f'SELECT s.id, s.acc, s.pp FROM {game_mode.scores_table} s '
             'INNER JOIN maps m ON s.map_md5 = m.md5 '
@@ -109,16 +107,14 @@ async def get_best_scores(user_id: int, include_fails: bool, mode: str, limit: i
                 "pp": pp
             }
             result.append(score)
-    finally:
-        await release_conn(conn)
+
     return result
 
 
 async def get_recent_scores(user_id: int, include_fails: bool, mode: str, limit: int, offset: int):
     game_mode = GameMode[mode]
     result = []
-    conn, cur = await new_cursor()
-    try:
+    async with db_context() as (_, cur):
         await cur.execute(f'select id from {game_mode.scores_table} where userid = %s and mode = %s '
                           'order by play_time desc '
                           f'limit {offset}, {limit}',
@@ -127,6 +123,4 @@ async def get_recent_scores(user_id: int, include_fails: bool, mode: str, limit:
         for row in await cur.fetchall():
             score = await Score.from_sql(row['id'], game_mode)
             result.append(score)
-    finally:
-        await release_conn(conn)
     return result
