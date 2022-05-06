@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from starlette.responses import Response
 
 from objects.stored import create_pool
 from terms.gamemode import GameMode
@@ -8,13 +7,26 @@ from objects.user import User
 
 app = FastAPI()
 
+
 @app.on_event("startup")
 async def startup_event():
     await create_pool()
 
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
+
+
+@app.get("/users/{user}")
+async def get_user(user):
+    return await get_user(user, "unknown")
+
+
+@app.get("/users/{user}/recent_activity")
+async def get_recent_activity():
+    return []
+
 
 @app.get("/users/{user}")
 async def get_user(user):
