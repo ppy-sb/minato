@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import functools
 from enum import IntFlag, unique
 
 

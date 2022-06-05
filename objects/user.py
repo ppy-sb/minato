@@ -21,8 +21,8 @@ class UserStatistics(BaseModel):
     play_time: int
     total_score: int
     maximum_combo: int
-    total_hits = 0
-    replays_watched_by_others = 0
+    total_hits: int
+    replays_watched_by_others: int
     is_ranked = True
 
     @staticmethod
@@ -42,7 +42,8 @@ class UserStatistics(BaseModel):
                               pp=pp, global_rank=rank['global'], ranked_score=row['rscore'],
                               hit_accuracy=row['acc'], play_count=row['plays'],
                               play_time=row['playtime'], total_score=row['tscore'],
-                              maximum_combo=row['max_combo'])
+                              maximum_combo=row['max_combo'], total_hits=row['total_hits'],
+                              replays_watched_by_others=row['replay_views'])
 
 
 class User(BaseModel):

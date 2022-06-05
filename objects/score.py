@@ -37,7 +37,7 @@ class Score(BaseModel):
     @staticmethod
     async def from_sql(score_id: int, mode: GameMode):
         async with db_context() as (_, cur):
-            await cur.execute(f"select * from {mode.scores_table} where id = %s", [score_id])
+            await cur.execute(f"select * from scores where id = %s and mode=%s", [score_id, mode.value])
             row = await cur.fetchone()
             if row is None:
                 return {"detail": "Not Found"}
@@ -89,13 +89,13 @@ async def get_best_scores(user_id: int, include_fails: bool, mode: str, limit: i
     result = []
     async with db_context() as (_, cur):
         await cur.execute(
-            f'SELECT s.id, s.acc, s.pp FROM {game_mode.scores_table} s '
+            f'SELECT s.id, s.acc, s.pp FROM scores s '
             'INNER JOIN maps m ON s.map_md5 = m.md5 '
             'WHERE s.userid = %s AND s.mode = %s '
             'AND s.status = 2 AND m.status = 2 '
             'ORDER BY s.pp DESC '
             f'limit {offset}, {limit}',
-            [user_id, game_mode.as_vanilla]
+            [user_id, game_mode.value]
         )
 
         for i, row in enumerate(await cur.fetchall()):
@@ -115,10 +115,10 @@ async def get_recent_scores(user_id: int, include_fails: bool, mode: str, limit:
     game_mode = GameMode[mode]
     result = []
     async with db_context() as (_, cur):
-        await cur.execute(f'select id from {game_mode.scores_table} where userid = %s and mode = %s '
+        await cur.execute(f'select id from scores where userid = %s and mode = %s '
                           'order by play_time desc '
                           f'limit {offset}, {limit}',
-                          [user_id, game_mode.as_vanilla])
+                          [user_id, game_mode.value])
 
         for row in await cur.fetchall():
             score = await Score.from_sql(row['id'], game_mode)

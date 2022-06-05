@@ -13,7 +13,7 @@ class GameMode(IntEnum):
     taikoRX = 5
     fruitsRX = 6
 
-    osuAP = 7
+    osuAP = 8
 
     @functools.cached_property
     def scores_table(self) -> str:
@@ -34,3 +34,4 @@ class GameMode(IntEnum):
     @functools.cached_property
     def as_vanilla_name(self) -> str:
         return GameMode(self.as_vanilla).name
+
