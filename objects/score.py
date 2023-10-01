@@ -55,8 +55,8 @@ class Score(BaseModel):
             "count_miss": row['nmiss']
         }
         beatmap = {
-            "beatmapset_id": map_row['set_id'],
-            "id": map_row['id'],
+            "beatmapset_id": str(map_row['set_id']),
+            "id": (map_row['id']),
             "version": map_row['version']
         }
         beatmapset = {
