@@ -56,5 +56,5 @@ async def get_score(score_id: int, mode: str = "osu"):
         mode = "osu"
     return await Score.from_sql(score_id, GameMode[mode])
 
-def __main__():
+if __name__ == '__main__':
     uvicorn.run("main:app", port=7700, host='127.0.0.1')
