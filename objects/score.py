@@ -13,7 +13,7 @@ from terms.mods import Mods
 class Score(BaseModel):
     class Config:
         arbitrary_types_allowed = True
-    replay = True
+    replay: bool = True
     accuracy: float
     best_id: int
     created_at: datetime

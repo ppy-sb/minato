@@ -23,7 +23,7 @@ class UserStatistics(BaseModel):
     maximum_combo: int
     total_hits: int
     replays_watched_by_others: int
-    is_ranked = True
+    is_ranked: bool = True
 
     @staticmethod
     async def from_sql(user_id: int, country: str, mode: GameMode) -> 'UserStatistics':
@@ -56,21 +56,21 @@ class User(BaseModel):
     statistics: UserStatistics
     playmode: str
     previous_usernames: list[str]
-    is_active = True
-    is_bot = False
-    is_deleted = False
-    is_online = False
-    is_supporter = False
-    pm_friends_only = False
-    profile_colour = config.user_default_profile_colour
-    cover_url = config.user_default_cover_url
-    has_supported = True
-    max_blocks = 50
-    max_friends = 500
-    playstyle = config.user_default_playstyle
-    post_count = 0
-    profile_order = config.user_default_profile_order
-    cover = {"custom_url": config.user_default_cover_url,
+    is_active: bool = True
+    is_bot: bool = False
+    is_deleted: bool = False
+    is_online: bool = False
+    is_supporter: bool = False
+    pm_friends_only: bool = False
+    profile_colour: str = config.user_default_profile_colour
+    cover_url: str = config.user_default_cover_url
+    has_supported: bool = True
+    max_blocks: int = 50
+    max_friends: int = 500
+    playstyle: list[str] = config.user_default_playstyle
+    post_count: int = 0
+    profile_order: list[str] = config.user_default_profile_order
+    cover: dict = {"custom_url": config.user_default_cover_url,
              "url": config.user_default_cover_url}
 
     @staticmethod
