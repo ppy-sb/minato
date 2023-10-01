@@ -32,7 +32,7 @@ class Score(BaseModel):
     beatmap: dict[str, str]
     beatmapset: dict[str, object]
     user_id: int
-    weight: dict[str, float] = []
+    weight: dict[str, float] = {}
 
     @staticmethod
     async def from_sql(score_id: int, mode: GameMode):
