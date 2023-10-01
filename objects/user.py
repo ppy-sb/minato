@@ -88,10 +88,10 @@ class User(BaseModel):
                 mode = fav_mode
             statistics = await UserStatistics.from_sql(int(row['id']), row['country'], mode)
             avatar_url = config.server_avatar + str(row['id'])
-            await cur.execute(f"select name from name_legality where id = %s and is_active = 0 order by create_time desc", [int(row['id'])])
+            await cur.execute(f"select username from username_history where user_id = %s order by change_date desc", [int(row['id'])])
             name_history = []
             for row2 in await cur.fetchall():
-                name_history.append(row2['name'])
+                name_history.append(row2['username'])
 
         return User(id=row['id'], username=row['name'], avatar_url=avatar_url, playmode=fav_mode.as_vanilla_name,
                     country_code=row['country'].upper(), statistics=statistics,
