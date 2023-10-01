@@ -56,7 +56,7 @@ class Score(BaseModel):
         }
         beatmap = {
             "beatmapset_id": str(map_row['set_id']),
-            "id": (map_row['id']),
+            "id": str(map_row['id']),
             "version": map_row['version']
         }
         beatmapset = {
