@@ -1,9 +1,11 @@
+import uvicorn
 from fastapi import FastAPI
 
 from objects.stored import create_pool
 from terms.gamemode import GameMode
 from objects.score import get_best_scores, get_recent_scores, Score
 from objects.user import User
+
 
 app = FastAPI()
 
