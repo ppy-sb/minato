@@ -20,11 +20,6 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.get("/users/{user}")
-async def get_user(user):
-    return await get_user(user, "unknown")
-
-
 @app.get("/users/{user}/recent_activity")
 async def get_recent_activity():
     return []
@@ -32,18 +27,20 @@ async def get_recent_activity():
 
 @app.get("/users/{user}")
 async def get_user(user):
-    return await get_user(user, "unknown")
+    return await get_user_mode(user, "unknown")
 
 
 @app.get("/users/{user}/{mode}")
-async def get_user(user: str, mode: str):
+async def get_user_mode(user: str, mode: str):
     if mode not in GameMode.__members__:
         mode = "unknown"
     return await User.from_sql(user, GameMode[mode])
 
 
 @app.get("/users/{user_id}/scores/{method}")
-async def get_scores(user_id: int, method: str, include_fails: str = "0", mode: str = "osu", limit: int = 5, offset: int = 0):
+async def get_scores(
+    user_id: int, method: str, include_fails: str = "0", mode: str = "osu", limit: int = 5, offset: int = 0
+):
     if mode not in GameMode.__members__:
         mode = "osu"
     if method == "best":
@@ -58,5 +55,6 @@ async def get_score(score_id: int, mode: str = "osu"):
         mode = "osu"
     return await Score.from_sql(score_id, GameMode[mode])
 
-if __name__ == '__main__':
-    uvicorn.run("main:app", port=7700, host='127.0.0.1')
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", port=7700, host="127.0.0.1")
