@@ -24,7 +24,12 @@ async def create_pool():
     global pool
     if pool is not None:
         return
-    pool = await aiomysql.create_pool(host=config.mysql_host, port=3306,
-                                      user=config.mysql_user, password=config.mysql_password,
-                                      db=config.mysql_dbname, charset='utf8', autocommit=True)
-
+    pool = await aiomysql.create_pool(
+        host=config.mysql_host,
+        port=3306,
+        user=config.mysql_user,
+        password=config.mysql_password,
+        db=config.mysql_dbname,
+        charset="utf8",
+        autocommit=True,
+    )
