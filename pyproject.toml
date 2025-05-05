@@ -1,0 +1,19 @@
+[project]
+name = "minato"
+version = "0.1.0"
+description = "bancho api v2 for bancho.py"
+authors = [{ name = "Trou2004" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "uvicorn (>=0.34.2,<0.35.0)",
+    "fastapi (>=0.115.12,<0.116.0)",
+    "pydantic (>=2.11.4,<3.0.0)",
+    "aiomysql (>=0.2.0,<0.3.0)",
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
